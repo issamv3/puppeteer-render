@@ -11,7 +11,8 @@ app.use(express.json());
 async function getDownloadLinkAndSize(url) {
   try {
       const browser = await puppeteer.launch({
-      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+      headless: true,
+       args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu', '--disable-dev-shm-usage'],
       executablePath:
       process.env.NODE_ENV === "production"
         ? process.env.PUPPETEER_EXECUTABLE_PATH
@@ -71,6 +72,7 @@ app.get('/dl', async (req, res) => {
     res.json({ success: true, data: result });
   } catch (error) {
     res.status(500).json({ success: false, error: 'حدث خطأ أثناء جلب البيانات.' });
+    console.log(error)
   }
 });
 
