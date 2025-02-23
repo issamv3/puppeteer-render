@@ -27,7 +27,7 @@ async function getDownloadLinkAndSize(url) {
     await page.setCacheEnabled(true);
     await page.setRequestInterception(true);
     page.on('request', (req) => {
-      if (['image', 'stylesheet', 'font', 'media', 'script'].includes(req.resourceType())) {
+      if (['image', 'stylesheet', 'font', 'media'].includes(req.resourceType())) {
         req.abort();
       } else {
         req.continue();
@@ -58,7 +58,8 @@ async function getDownloadLinkAndSize(url) {
     await page.goto(url, { waitUntil: 'domcontentloaded' });
     const pageContent = await page.content();
     const $ = cheerio.load(pageContent);
-    const link = $('a#downloadButton').attr('href');
+    console.log(pageContent)
+    const link = $('a#downloadButton').attr('href'); 
     const sizeText = $('a#downloadButton').text().replace('Download', '').replace(/[()]/g, '').trim();
 
     if (!link) {
