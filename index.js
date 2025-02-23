@@ -10,39 +10,26 @@ app.use(express.json());
 
 async function getDownloadLinkAndSize(url) {
   try {
-    const browser = await puppeteer.launch({
+      const browser = await puppeteer.launch({
       headless: true,
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-gpu',
-        '--disable-dev-shm-usage'
-      ],
-      executablePath: process.env.NODE_ENV === "production"
+       args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu', '--disable-dev-shm-usage'],
+      executablePath:
+      process.env.NODE_ENV === "production"
         ? process.env.PUPPETEER_EXECUTABLE_PATH
         : puppeteer.executablePath(),
     });
 
     const page = await browser.newPage();
-    await page.setCacheEnabled(true);
     await page.setRequestInterception(true);
     page.on('request', (req) => {
-      if (['image', 'stylesheet', 'font', 'media', 'script'].includes(req.resourceType())) {
+      if (['image', 'stylesheet', 'font'].includes(req.resourceType())) {
         req.abort();
       } else {
         req.continue();
       }
     });
-    
-    let responseHeaders = {};
-    page.on('response', async (response) => {
-      if (response.url().includes('mediafire.com')) {
-        responseHeaders = response.headers();
-      }
-    });
-    
     await page.setExtraHTTPHeaders({
-           'authority': 'www.mediafire.com',
+      'authority': 'www.mediafire.com',
       'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
       'accept-language': 'ar-EG,ar;q=0.9,en-US;q=0.8,en;q=0.7',
       'cache-control': 'max-age=0',
@@ -58,49 +45,42 @@ async function getDownloadLinkAndSize(url) {
       'sec-fetch-user': '?1',
       'upgrade-insecure-requests': '1',
       'user-agent': 'Mozilla/5.0 (Linux; Android 11; WIKO T10) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Mobile Safari/537.36'
-          });
+    });
+
     await page.goto(url, { waitUntil: 'domcontentloaded' });
+
     const pageContent = await page.content();
+
     const $ = cheerio.load(pageContent);
-    console.log(pageContent)
-    const link = $('a#downloadButton').attr('href'); 
-    const sizeText = $('a#downloadButton').text().replace('Download', '').replace(/[()]/g, '').trim();
-
-    if (!link) {
-      throw new Error('لم يتم العثور على زر التحميل.');
-    }
-
-    const fileName = decodeURIComponent(link.split('/').pop());
-    const fileType = fileName.split('.').pop();
-
-    const fileInfo = {
-      name: fileName,
-      type: fileType,
-      size: sizeText,
-      link: link
-    };
+    const hasil = [];
+    const link = $('a#downloadButton').attr('href');
+    const size = $('a#downloadButton').text().replace('Download', '').replace('(', '').replace(')', '').replace('\n', '').replace('\n', '').replace('                         ', '').trim();
+    const seplit = link.split('/');
+    const name = decodeURIComponent(seplit[5]);
+    const parts = name.split('.');
+    const type = parts[parts.length - 1];
+    hasil.push({ name, type, size, link });
 
     await browser.close();
-
-    return { file: fileInfo, headers: responseHeaders };
+    return hasil;
   } catch (error) {
     console.error('حدث خطأ:', error);
     throw error;
   }
 }
-
 app.get('/dl', async (req, res) => {
   const { url } = req.query;
 
   if (!url) {
-    return res.status(400).json({ success: false, error: "يرجى تقديم رابط صحيح." });
+    return res.send("🦊")
   }
 
   try {
     const result = await getDownloadLinkAndSize(url);
-    res.json({ success: true, data: result.file, headers: result.headers });
+    res.json({ success: true, data: result });
   } catch (error) {
     res.status(500).json({ success: false, error: 'حدث خطأ أثناء جلب البيانات.' });
+    console.log(error)
   }
 });
 
